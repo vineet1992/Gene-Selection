@@ -1,0 +1,22 @@
+library('gcdnet')
+
+data <- read.csv('GSE7390_2.csv', header = FALSE, sep=',') ##loads the data
+x <- data[,1:22283] ##separates out the predictors
+y <- data[,22284] ##creates a vector of labels
+y[which(y==0)]=-1 ##since the models use binary class of -1 and 1, I convert 0 labels to -1
+n <- dim(x)[1] ##this is a count of how many samples
+lim <- floor(n/3) ##this gives a value 1/3 of the count, to be used to create training and testing sets
+	
+rand <- sample(1:n, n) ##creates a random permutation on the number of samples, to be used as indices to get random training/testign data
+y_tr <- y[rand[(lim+1):n]] 
+x_tr <- x[rand[(lim+1):n],]
+x_te <- x[rand[1:lim],]
+y_te <- y[rand[1:lim]]
+
+m <- cv.gcdnet(x_tr, y_tr, nfolds=10) ##trains a model
+p_class <- predict(m$gcdnet.fit, x_te, s=m$lambda.1se, type="class") ##uses the trained model to make predictions on unseen data
+
+if(length(which(p_class==-1))==lim){print("all negative")} ##a debugging line, tells when every test sample is predicted negative
+
+l = length(which(y_te == p_class)) ##check how many 
+l/lim ##gives accuracy, as correct over total
