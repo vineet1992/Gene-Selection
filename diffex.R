@@ -1,88 +1,99 @@
-#if(!require(devtools)) install.packages("devtools")
-#devtools::install_github("kassambara/ggpubr")
+library(gcdnet)
+library(pROC)
 
-data <- read.csv('1456_2.csv', header = FALSE, sep=',') ##loads the data
-
-#separates into positive and negative groups
-pos <- data[which(data[,22284]==1),]
-neg <- data[which(data[,22284]==0),]
-
-#calculates difference of means between each group, for each feature
-val= c(1:22283)
-for (i in val){
-	t = t.test(pos[,i], neg[,i])
-	val[i] = abs(t$estimate[1] - t$estimate[2])
-}
-i = c(1:22283)
-
-#orders the features indices high to low, according the difference of means
-m = order(val,1:22283,decreasing=TRUE)
-
-n = dim(data)[1]
-s = floor(n/5)
-x = data[,1:22284] #matrix of predictors and classes
-y = data[,22284] #vector of labels
-rand = sample(1:n,n) #creates a random permutation (for indexing samples randomly)
-x = x[rand,]
+#sampleData <- read.csv('GSE1456_2.csv', header = FALSE, sep=',') ##loads the data
+sampleData <- read.csv('GSE11121_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('GSE2990_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('GSE2034_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('GSE4922_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('GSE7390_2.csv', header = FALSE, sep=',')
 
 
+n = dim(sampleData)[1]
+rand = sample(1:n,n)
+sampleData = sampleData[rand,] #randomly shuffle data
+f = floor(n/10)
 
+AUC = c(1:10) #a vector to store the AUC for each test fold
+selected = matrix(,nrow=10,ncol=50) #a matrix to store indices of selected predictors for each fold; used for comparison in computing stability
 
-
-	best_k=1 #assume using 5 features has the best accuracy
-	best_acc = 0 #assume the accuracy of the best value of i is 0
-	best_accSet = c(0,0,0,0,0)
+for (i in 0:9){ #for each of 10 folds
+	OUT = sampleData[c(1:f+f*i),] #leave one out for testing
+	IN = sampleData[-c(1:f+f*i),] #use the rest as a training set
 	
-	#performs 5-fold cross validation using i features with greatest difference in mean
-	for (i in 5:50){ #set to 7 for testing script; change to desired number when actually running
-		acc = c(0,0,0,0,0)
-		for (j in 0:4){
-			xtr = x[-c(1:s+j*s),] #excludes (j+1)th fold for cross validation
-									#do note that we may leave out some samples entirely (up to 4)
-			xtr = data.frame(xtr[,c(22284, m[1:i])]) #glm() wants a dataframe; glm() predicts the first column on the remaining columns
-			xte = x[c(1:s+j*s),] #select the values from the left out fold
-			xte = data.frame(xte[,m[1:i]]) #create a dataframe of the left out fold, for testing
-			yte = x[c(1:s+j*s),22284] #vector of actual classes for the leftout fold, used for comparison to predicted classes
-			model = glm(xtr, family=binomial(link="logit")) #i'm not sure if these are appropriate parameters
-			p= predict(model, xte, type = "response")
+	s = floor(dim(IN)[1]/5)	 #to pick best k, will do 5-fold cross validation
+	ind = matrix(,nrow=5,ncol=50) #this will store the top 50 predictors with greatest difference in means between positive and negative samples
+	for(j in 0:4){ 
+		TEST = IN[c(1:s+j*s),] #similarly, leave one out for testing. this time we treat only the training set as if it were the whole data set
+		TRAIN = IN[-c(1:s+s*j),] #and use rest for training
+		POS = TRAIN[which(TRAIN[,22284]==1),]
+		NEG = TRAIN[which(TRAIN[,22284]==0),]
 
-			p[which(p>=.5)]=1
-			p[which(p<.5)]=0
-			acc[j+1] = length(which(p==yte))/s
+		m = c(1:22283)
+		for (d in 1:22283){	#calculate the difference in means between pos and neg for each predictor
+			m[d] = abs(mean(POS[,d])-mean(NEG[,d]))		
 		}
-		if (mean(acc)>best_acc){
-			best_k = i
-			best_acc = mean(acc)
-			best_accSet = acc
+		ind[j+1,] = order(m, 1:22283, decreasing=TRUE)[1:50] #order their indices highest to lowest, and select only the top 50
+	}
+	
+	best_k=0
+	best_acc=0
+	for(k in 5*1:10){
+		acc = c(0,0,0,0,0) #init a vector to store the AUC for each fold
+		for (j in 0:4){	
+			m = ind[j+1,1:k]
+			TRAIN = IN[-c(1:s+s*j),] #these will be the same sets we computed difference of means on, we just did it above so that we didnt have to do it inside the loop. this shiz takes long enough already
+			TEST = IN[c(1:s+j*s),]
+			
+			x = data.frame(TRAIN[,c(22284,m)])	#glm wants a data frame, and predicts the first column on the remaining columns, so put y first and the best predictors (indexed by m) of x
+			model = glm(x, family=binomial(link="logit")) #train! #i'm not sure if these are appropriate parameters
+			
+			x = data.frame(TEST[,m]) #now we need to exclude the labels; just use the indexed best predictors from the cv test fold
+			y = TEST[,22284]
+			p = predict(model, x, type = "response")
+			
+			A = roc(y,p)	#create an ROC object
+			acc[j+1]=auc(A)	#get area under curve from it, and record in the array we init'd
 		}
+		
+		if(mean(acc)>best_acc){		#once we have an AUC for each cv test fold, compute their average and update the best as needed
+			best_k=k
+			best_acc=mean(acc)}
 	}
 
-	print(best_k)
-	print(best_acc)
 	
+	#equipped with out best_k, we basically do the same model building and testing as above, but now using the 9 folds from the whole data set to predict the 1 left out fold
+	POS = IN[which(IN[,22284]==1),] 
+	NEG = IN[which(IN[,22284]==0),]
+	m = c(1:22283)
+	for (d in 1:22283){
+		m[d] = abs(mean(POS[,d])-mean(NEG[,d]))		
+	}
+	m = order(m, 1:22283, decreasing=TRUE)[1:best_k]
+	
+	x = data.frame(IN[,c(22284,m)])
+	model = glm(x, family=binomial(link="logit"))
+	
+	x = data.frame(OUT[,m])
+	p = predict(model, x, type="response")
+	y = OUT[,22284]
+	A = roc(y,p)
+	AUC[i+1] = auc(A)
+	for(z in 1:length(m)){ #each fold may not have the same best_k, so we would get length mismatches if we tried something like AUC[i+1] = m
+		selected[i+1,z] = m[z]
+	}
+}
 
 
-s = floor(n/3) #now split 2/3 train, 1/3 test
-rand = sample(1:n,n) #get a new random permutation
-x = x[rand,]
-xi = x[,c(22284,m[1:best_k])] #use k features according to how many previously determined best 
-xtr = xi[(s+1):n,] #set up dataframe to train on
-xte = xi[1:s,2:(best_k+1)] #set up dataframe to test on; do not include class labels
-yte = xi[1:s,1] #vector of class labels for testing samples
+print(mean(AUC)) #this gives the avergae AUC. we could probably do more statistics on it, unless whatever plot we use can just accept this as is
 
-model = glm(xtr, family=binomial(link="logit")) #build
-p = predict(model, xte, type = "response") #predict
-p[which(p>=.5)] = 1 #convert probabilities to labels
-p[which(p<.5)] = 0 #convert probabilities to labels
-print(length(which(p==yte))) #compare predicted and actual labels
-print(length(which(p==yte))/s)
+I = selected[1,] #we'll intersect all the selected predictors. we start with the intersection of a single set
+U = selected[1,] #similarly, we union 
+for(i in 2:10){		#go through each set and intersect and union
+	I = intersect(I, selected[i,])
+	U = union(U, selected[i,])
+}
+I = I[which(I!='NA')] #remove any NA
+U = U[which(U!='NA')]
 
-
-
-
-#1456:
-#11121: 86.4%
-#2990: 80.9%
-#2034:
-#4922:
-#7390: 68.2%
+print(length(I)/length(U))
