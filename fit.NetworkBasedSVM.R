@@ -1,10 +1,19 @@
-data <- read.table("C:/Users/Marcus/Desktop/eset_highest_variance.txt", header=TRUE, sep='\t')
+## gets .csv file with the header manually added in
+data <- read.csv("C:/Users/Marcus/Desktop/GSE1456_2.csv", header = TRUE, sep = ',') ## read in data
+col <- colnames(data)
+for(i in 1:length(col)) ## removes any leading X in the header names
+{
+  if(substring(col[i], 1, 1) == 'X')
+    col[i] <- substr(col[i], 2, nchar(col[i]))
+}
+colnames(data) <- col
 x <- (data)
-y <- factor(data$Response)
+y <- factor(data$y)
 
+## creates a mapping using ENTREZID
 library(hgu133a.db)
-mapped.probes <- mappedkeys(hgu133aREFSEQ)
-refseq <- as.list(hgu133aREFSEQ[mapped.probes])
+mapped.probes <- mappedkeys(hgu133aENTREZID)
+refseq <- as.list(hgu133aENTREZID[mapped.probes])
 times <- sapply(refseq, length)
 mapping <- data.frame(probesetID=rep(names(refseq), times=times), graphID=unlist(refseq), row.names=NULL, stringsAsFactors=FALSE)
 mapping <- unique(mapping)
@@ -13,6 +22,7 @@ library(graphite)
 paths <- pathways("hsapiens", "kegg")
 alledges <- NULL
 
+## creates an adjacency matrix
 for(i in 1:length(paths)) ## loop through each of the pathways
 {
   curr2 <- paths[[i]]
@@ -39,7 +49,16 @@ for(i in 1:nrow(alledges))
 }
 
 library(pathClass)
-matched <- matchMatrices(x=x, adjacency=adjMatrix, mapping=mapping)
+matched <- matchMatrices(x = x, adjacency = adjMatrix, mapping = mapping)
 ad.list <- as.adjacencyList(adjMatrix)
+
+
+## networkBasedSVM
 res.nBSVM <- crossval(matched$x, y, theta.fit=fit.networkBasedSVM, folds=3, repeats=1, DEBUG=TRUE,
-                      parallel=FALSE, adjacencyList=ad.list, lambdas=10^(-1:2), sd.cutoff=50)
+                      parallel=FALSE, adjacencyList=ad.list, lambdas=10^(-1:2), sd.cutoff=1)
+
+
+## RRFE
+res.rrfe <- crossval(x, y, DEBUG=TRUE, theta.fit=fit.rrfe, folds=3, repeats=1, parallel=TRUE,
+                     Cs=10^(-3:3), mapping=mapping, Gsub=adjMatrix, d=1/2)
+
