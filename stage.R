@@ -10,7 +10,7 @@
 
 library(GEOquery)
 library(affy)
-datasets <- c('GSE2034','GSE1456','GSE2990','GSE4922','GSE7390','GSE11121')
+datasets <- c('./data/GSE2034','./data/GSE1456','./data/GSE2990','./data/GSE4922','./data/GSE7390','./data/GSE11121')
 for (i in datasets){
 	getGEOSuppFiles(i)
 	

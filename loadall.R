@@ -1,11 +1,11 @@
 #this will load each dataset, and set up the prior knowledge adjacency matrix
 
-GSE1456 <- read.csv('GSE1456_2.csv', header = FALSE, sep=',') ##loads the data
-GSE2034 <- read.csv('GSE2034_2.csv', header = FALSE, sep=',')
-GSE2990 <- read.csv('GSE2990_2.csv', header = FALSE, sep=',')
-GSE4922 <- read.csv('GSE4922_2.csv', header = FALSE, sep=',')
-GSE7390 <- read.csv('GSE7390_2.csv', header = FALSE, sep=',')
-GSE11121 <- read.csv('GSE11121_2.csv', header = FALSE, sep=',')
+GSE1456 <- read.csv('./data/GSE1456_2.csv', header = FALSE, sep=',') ##loads the data
+GSE2034 <- read.csv('./data/GSE2034_2.csv', header = FALSE, sep=',')
+GSE2990 <- read.csv('./data/GSE2990_2.csv', header = FALSE, sep=',')
+GSE4922 <- read.csv('./data/GSE4922_2.csv', header = FALSE, sep=',')
+GSE7390 <- read.csv('./data/GSE7390_2.csv', header = FALSE, sep=',')
+GSE11121 <- read.csv('./data/GSE11121_2.csv', header = FALSE, sep=',')
 
 col = read.csv("headers.csv",header=TRUE,sep=",")[1:22284]
 col <- colnames(col)
