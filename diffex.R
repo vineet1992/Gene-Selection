@@ -1,12 +1,12 @@
 library(gcdnet)
 library(pROC)
 
-#sampleData <- read.csv('GSE1456_2.csv', header = FALSE, sep=',') ##loads the data
-sampleData <- read.csv('GSE11121_2.csv', header = FALSE, sep=',')
-#sampleData <- read.csv('GSE2990_2.csv', header = FALSE, sep=',')
-#sampleData <- read.csv('GSE2034_2.csv', header = FALSE, sep=',')
-#sampleData <- read.csv('GSE4922_2.csv', header = FALSE, sep=',')
-#sampleData <- read.csv('GSE7390_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('./data/GSE1456_2.csv', header = FALSE, sep=',') ##loads the data
+sampleData <- read.csv('./data/GSE11121_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('./data/GSE2990_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('./data/GSE2034_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('./data/GSE4922_2.csv', header = FALSE, sep=',')
+#sampleData <- read.csv('./data/GSE7390_2.csv', header = FALSE, sep=',')
 
 
 n = dim(sampleData)[1]
