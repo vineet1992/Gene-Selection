@@ -11,12 +11,12 @@ library(graphite)
 setwd("./")
 
 ## use scan with flag skip=1 instead of read.csv() but tell read.csv -> double
-GSE1456 <- read.csv(paste0(getwd(),'/data/GSE1456_2.csv'), header = FALSE) ##loads the data
-GSE2034 <- read.csv(paste0(getwd(),'/data/GSE2034_2.csv'), header = FALSE)
-GSE2990 <- read.csv(paste0(getwd(),'/data/GSE2990_2.csv'), header = FALSE)
-GSE4922 <- read.csv(paste0(getwd(),'/data/GSE4922_2.csv'), header = FALSE)
-GSE7390 <- read.csv(paste0(getwd(),'/data/GSE7390_2.csv'), header = FALSE)
-GSE11121 <- read.csv(paste0(getwd(),'/data/GSE11121_2.csv'), header = FALSE)
+GSE1456 <- scan(paste0(getwd(),'/data/GSE1456_2.csv'), skip=1,sep=',') ##loads the data
+GSE2034 <- scan(paste0(getwd(),'/data/GSE2034_2.csv'), skip=1,sep=',')
+GSE2990 <- scan(paste0(getwd(),'/data/GSE2990_2.csv'), skip=1,sep=',')
+GSE4922 <- scan(paste0(getwd(),'/data/GSE4922_2.csv'), skip=1,sep=',')
+GSE7390 <- scan(paste0(getwd(),'/data/GSE7390_2.csv'), skip=1,sep=',')
+GSE11121 <- scan(paste0(getwd(),'/data/GSE11121_2.csv'), skip=1,sep=',')
 
 col = read.csv(paste0(getwd(),"/data/headers.csv"),header=TRUE)[1:22284]
 col <- colnames(col)
@@ -26,6 +26,12 @@ for(i in 1:length(col)) ## removes any leading X in the header names
   if(substring(col[i], 1, 1) == 'X')
     col[i] <- substr(col[i], 2, nchar(col[i]))
 }
+
+##to remove the for loop above
+##col<-apply(col,function(col){
+##  if(substring(col[i], 1, 1) == 'X')
+##      col[i] <- substr(col[i], 2, nchar(col[i]))
+##  })
 
 ## creates a mapping using ENTREZID
 

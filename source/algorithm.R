@@ -5,7 +5,7 @@ library(hgu133a.db)
 if(!require(pathClass)) install.packages('../dependencies/pathClass_0.9.4.tar.gz')
 library(pathClass)
 setwd("./")
-data <- scan("./data/GSE11121_2.csv", sep='\t')
+data <- scan("./data/GSE11121_2.csv", sep='\t',skip=1)
 x <- (data)
 y <- factor(data$Response)
 
