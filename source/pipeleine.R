@@ -10,9 +10,9 @@ library(modelr)
 library(tidyverse)
 
 
-data <- read.csv(paste0(getwd(),'/../data/GSE11121_2.csv'),header=FALSE)
+data <- read.csv(paste0(getwd(),'/data/GSE11121_2.csv'),header=FALSE)
 
-col = read.csv(paste0(getwd(),"/../data/headers.csv"),header=TRUE)[1:ncol(data)]
+col = read.csv(paste0(getwd(),"/data/headers.csv"),header=TRUE)[1:ncol(data)]
 col <- colnames(col)
 ## remove the for loop ##
 
@@ -21,16 +21,17 @@ col <- colnames(col)
 
 ####Cannot use this for-loop, it should be abandoned
 ####A legal R variable cannot start with a number, so this causes problems when using a formula object
-for(i in 1:length(col)) ## removes any leading X in the header names
-{
-  if(substring(col[i], 1, 1) == 'X')
-    col[i] <- substr(col[i], 2, nchar(col[i]))
-}
+##for(i in 1:length(col)) ## removes any leading X in the header names
+##{
+##  if(substring(col[i], 1, 1) == 'X')
+##    col[i] <- substr(col[i], 2, nchar(col[i]))
+##}
 colnames(data) <- col
 
 pipeline_func <- function(df,FUN = lm) {
   
-  ###This formula assumes that the first variable is the Target variable of interest (you probably need to include target as a param)
+  ###This formula assumes that the first variable is the Target variable of interest 
+  ### (you probably need to include target as a param)
   form = as.formula(paste(colnames(df)[1]," ~ .",sep=""))
   
   ###Correctly runs the linear model (or any other model)
