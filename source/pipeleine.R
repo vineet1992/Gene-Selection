@@ -28,11 +28,11 @@ col <- colnames(col)
 ##}
 colnames(data) <- col
 
-pipeline_func <- function(df,FUN = lm) {
+pipeline_func <- function(df,FUN = lm,target) {
   
   ###This formula assumes that the first variable is the Target variable of interest 
   ### (you probably need to include target as a param)
-  form = as.formula(paste(colnames(df)[1]," ~ .",sep=""))
+  form = as.formula(paste(target,"~ ."))
   
   ###Correctly runs the linear model (or any other model)
   mdl = FUN(form,df)
@@ -43,16 +43,19 @@ pipeline_func <- function(df,FUN = lm) {
 
 ###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
 temp = data[,1:100]
+target = colnames(as.data.frame(data))[1]
 
+#change to precision recall
+#target variable sjo
 
 # 5-fold cross-validation using machine learning pipelines
 
 
 ###Again here the target variable name should not be hardcoded
 cv_rmse <- crossv_kfold(temp, 5) %>% 
-  mutate(model = map(train, ~ pipeline_func(as.data.frame(.x),lm)),
+  mutate(model = map(train, ~ pipeline_func(as.data.frame(.x),lm,colnames(as.data.frame(.x))[1])),
          predictions = map2(model, test, ~ predict(.x, as.data.frame(.y))),
-         residuals = map2(predictions, test, ~ .x - as.data.frame(.y)$'X1007_s_at'),
+         residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
          rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% 
   summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
 
