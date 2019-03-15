@@ -11,13 +11,15 @@ library(graphite)
 setwd("./")
 
 ## use scan with flag skip=1 instead of read.csv() but tell read.csv -> double
-GSE1456 <- scan(paste0(getwd(),'/data/GSE1456_2.csv'), skip=1,sep=',') ##loads the data
-GSE2034 <- scan(paste0(getwd(),'/data/GSE2034_2.csv'), skip=1,sep=',')
-GSE2990 <- scan(paste0(getwd(),'/data/GSE2990_2.csv'), skip=1,sep=',')
-GSE4922 <- scan(paste0(getwd(),'/data/GSE4922_2.csv'), skip=1,sep=',')
-GSE7390 <- scan(paste0(getwd(),'/data/GSE7390_2.csv'), skip=1,sep=',')
-GSE11121 <- scan(paste0(getwd(),'/data/GSE11121_2.csv'), skip=1,sep=',')
-
+if(!exists("GSE1456") && !exists("GSE2034") && !exists("GSE2990") && 
+!exists("GSE4922") && !exists("GSE7390") && !exists("GSE11121")){
+GSE1456 <- read.csv(paste0(getwd(),'/data/GSE1456_2.csv'), skip=1,sep=',') ##loads the data
+GSE2034 <- read.csv(paste0(getwd(),'/data/GSE2034_2.csv'), skip=1,sep=',')
+GSE2990 <- read.csv(paste0(getwd(),'/data/GSE2990_2.csv'), skip=1,sep=',')
+GSE4922 <- read.csv(paste0(getwd(),'/data/GSE4922_2.csv'), skip=1,sep=',')
+GSE7390 <- read.csv(paste0(getwd(),'/data/GSE7390_2.csv'), skip=1,sep=',')
+GSE11121 <- read.csv(paste0(getwd(),'/data/GSE11121_2.csv'), skip=1,sep=',')
+}
 col = read.csv(paste0(getwd(),"/data/headers.csv"),header=TRUE)[1:22284]
 col <- colnames(col)
 ## remove the for loop ##
