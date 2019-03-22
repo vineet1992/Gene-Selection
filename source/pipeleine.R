@@ -54,8 +54,8 @@ pipeline_func <- function(df,FUN = lm,target) {
 }
 
 ###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
-temp = data[,1:100]
-target = colnames(as.data.frame(data))[1]
+temp = data[,-ncol(data)]
+target = colnames(as.data.frame(data[,ncol(data)]))[1]
 
 #change to precision recall
 #target variable sjo
@@ -114,20 +114,22 @@ return(matched)
 
 }
 
-custom_nsvm <- function(y_tr,x_tr){
+custom_nsvm <- function(x_tr,y_tr){
   m_tr <- custom_func(x_tr)
-  model <- fit.networkBasedSVM(m_tr$x, y_tr, DEBUG=FALSE, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=1)
-  
-  return(model)
+  x = x_tr
+  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=FALSE, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.3)
+  mapping[mapping[,2] %in% nbSVM$features,]
+  return(nbSVM)
 }
 
+
+.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
 cv_rmse <- crossv_kfold(temp, 5) %>% 
-  mutate(model = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm,colnames(as.data.frame(.x))[1])),
-         predictions = map2(model, test, ~ predict(.x, as.data.frame(.y))),
+  mutate(select_features = map(train, ~ pipeline_func(.x[,-ncol(.x)],custom_nsvm,.x[,ncol(.x)])))
+         #predictions = map2(model, test, ~ predict(.x, .x[,ncol(.x)]),
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
          
-         rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% 
-  summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
+         #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
 
 cv_rmse
