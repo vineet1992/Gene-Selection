@@ -16,9 +16,8 @@ library(pipeliner)
 library(modelr)
 library(tidyverse)
 
-
-
-  
+if(!require(hgu133a.db)) BiocManager::install(hgu133a.db)
+library(hgu133a.db)
   
 
 data <- read.csv(paste0(getwd(),'/data/GSE11121_2.csv'),header=FALSE)
@@ -39,18 +38,27 @@ for(i in 1:length(col)) ## removes any leading X in the header names
 }
 colnames(data) <- col
 
-pipeline_func <- function(df,FUN = lm,target) {
+pipeline_func <- function(df,FUN=lm) {
   
   ###This formula assumes that the first variable is the Target variable of interest 
   ### (you probably need to include target as a param)
-  form = as.formula(paste(target,"~ ."))
+  #form = as.formula(paste(target,"~ ."))
   
   ###Correctly runs the linear model (or any other model)
+  x_tr = df[0,-ncol(df)]
+  y_tr = df[0,ncol(df)]
   
-  mdl = FUN(form,df)
+  mdl = FUN(x_tr,y_tr)
   
   ##Return the model
   return(mdl)
+}
+
+predict <- function(mdl,df){
+  x_te <- df[,-ncol(df)]
+  y_te <- df[,ncol(df)]
+  pred = predict(nbSVM, x_te)
+  return (pred)
 }
 
 ###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
@@ -62,10 +70,10 @@ target = colnames(as.data.frame(data[,ncol(data)]))[1]
 
 # 5-fold cross-validation using machine learning pipelines
 
-custom_fun <- function(x_tr){
+custom_func <- function(x_tr){
   
   
-  
+  browser()
   mapped.probes <- mappedkeys(hgu133aENTREZID)
   refseq <- as.list(hgu133aENTREZID[mapped.probes])
   times <- sapply(refseq, length)
@@ -123,13 +131,16 @@ custom_nsvm <- function(x_tr,y_tr){
 }
 
 
-.x = as.data.frame(data)
+#.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
-cv_rmse <- crossv_kfold(temp, 5) %>% 
-  mutate(select_features = map(train, ~ pipeline_func(.x[,-ncol(.x)],custom_nsvm,.x[,ncol(.x)])))
-         #predictions = map2(model, test, ~ predict(.x, .x[,ncol(.x)]),
+cv_rmse <- crossv_kfold(as.data.frame(data), 5) %>% 
+  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
+         predictions = map2(select_features, test, ~ predict(as.data.frame(.x))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
          
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-
+         #pred = predict(nbSVM, mdev$x)
+         #print(pred)	
+         #A = roc(y_te,pred)
+         #AUC.nbsvm[i+1] = auc(A)
 cv_rmse
