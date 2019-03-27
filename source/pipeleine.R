@@ -45,8 +45,8 @@ pipeline_func <- function(df,FUN=lm) {
   #form = as.formula(paste(target,"~ ."))
   
   ###Correctly runs the linear model (or any other model)
-  x_tr = df[0,-ncol(df)]
-  y_tr = df[0,ncol(df)]
+  x_tr = df[,-ncol(df)]
+  y_tr = df[,ncol(df)]
   
   mdl = FUN(x_tr,y_tr)
   
@@ -73,7 +73,7 @@ target = colnames(as.data.frame(data[,ncol(data)]))[1]
 custom_func <- function(x_tr){
   
   
-  browser()
+  #browser()
   mapped.probes <- mappedkeys(hgu133aENTREZID)
   refseq <- as.list(hgu133aENTREZID[mapped.probes])
   times <- sapply(refseq, length)
@@ -118,14 +118,18 @@ custom_func <- function(x_tr){
   
   
 matched <- matchMatrices(x = x_tr, adjacency = adjMatrix, mapping = mapping)
-return(matched)
+return(list(matched,ad.list,mapping))
 
 }
 
 custom_nsvm <- function(x_tr,y_tr){
-  m_tr <- custom_func(x_tr)
+  #browser()
+  var <- custom_func(x_tr)
+  matched <- var[[1]]
+  ad.list <- var[[2]]
+  mapping <- var[[3]]
   x = x_tr
-  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=FALSE, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.3)
+  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=FALSE, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
   mapping[mapping[,2] %in% nbSVM$features,]
   return(nbSVM)
 }
@@ -133,11 +137,12 @@ custom_nsvm <- function(x_tr,y_tr){
 
 #.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
+
 cv_rmse <- crossv_kfold(as.data.frame(data), 5) %>% 
   mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
          predictions = map2(select_features, test, ~ predict(as.data.frame(.x))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
-         
+#[,c(1:100,ncol(as.data.frame(.x)))]
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
          #pred = predict(nbSVM, mdev$x)
          #print(pred)	
