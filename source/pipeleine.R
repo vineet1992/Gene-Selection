@@ -57,7 +57,7 @@ pipeline_func <- function(df,FUN=lm) {
 predict <- function(mdl,df){
   x_te <- df[,-ncol(df)]
   y_te <- df[,ncol(df)]
-  pred = predict(nbSVM, x_te)
+  pred = predict(mdl, x_te)
   return (pred)
 }
 
@@ -140,7 +140,7 @@ custom_nsvm <- function(x_tr,y_tr){
 
 cv_rmse <- crossv_kfold(as.data.frame(data), 5) %>% 
   mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
-         predictions = map2(select_features, test, ~ predict(as.data.frame(.x))))
+         predictions = map2(select_features, test, ~ predict(select_features,as.data.frame(.x))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
