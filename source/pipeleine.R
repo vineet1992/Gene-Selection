@@ -66,7 +66,7 @@ pipeline_func <- function(df,FUN=lm) {
   return(mdl)
 }
 
-predict <- function(mdl,df){
+predict_use_model <- function(mdl,df){
   x_te <- df[,-ncol(df)]
   var <- custom_func(x_te)
   matched <- var[[1]]
@@ -157,7 +157,7 @@ data[,ncol(data)] = factor(data[,ncol(data)])
 
 cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:2000,ncol(data))]), 5) %>% 
   mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
-         predictions = map2(select_features, test, ~ predict(.x,as.data.frame(.y))))
+         predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
