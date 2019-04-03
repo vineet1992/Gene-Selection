@@ -15,15 +15,27 @@ if(!require(pipeliner)) devtools::install_github('tidyverse/modelr')
 library(pipeliner)
 library(modelr)
 library(tidyverse)
+library(graphite)
 
 if(!require(hgu133a.db)) BiocManager::install(hgu133a.db)
 library(hgu133a.db)
   
+FILE = paste0(getwd(),'/data/GSE11121_2.csv')
 
-data <- read.csv(paste0(getwd(),'/data/GSE11121_2.csv'),header=FALSE)
 
-col = read.csv(paste0(getwd(),"/data/headers.csv"),header=TRUE)[1:ncol(data)]
-col <- colnames(col)
+##Quickly determine the number of columns
+x <- max(count.fields(FILE, ","))
+
+###Scan the file
+data <- scan(FILE,sep=",")
+
+###Extract number of rows and columns
+nr = length(data)/x
+nc = x
+data = matrix(data,nrow=nr,ncol=nc,byrow=T)
+
+
+col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
 ## remove the for loop ##
 
 
@@ -56,8 +68,12 @@ pipeline_func <- function(df,FUN=lm) {
 
 predict <- function(mdl,df){
   x_te <- df[,-ncol(df)]
+  var <- custom_func(x_te)
+  matched <- var[[1]]
+  ad.list <- var[[2]]
+  mapping <- var[[3]]
   y_te <- df[,ncol(df)]
-  pred = predict(mdl, x_te)
+  pred = predict.networkBasedSVM(mdl, matched$x)
   return (pred)
 }
 
@@ -134,13 +150,14 @@ custom_nsvm <- function(x_tr,y_tr){
   return(nbSVM)
 }
 
+data[,ncol(data)] = factor(data[,ncol(data)])
 
 #.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
 
-cv_rmse <- crossv_kfold(as.data.frame(data), 5) %>% 
+cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:2000,ncol(data))]), 5) %>% 
   mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
-         predictions = map2(select_features, test, ~ predict(select_features,as.data.frame(.x))))
+         predictions = map2(select_features, test, ~ predict(.x,as.data.frame(.y))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
