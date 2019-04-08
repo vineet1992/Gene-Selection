@@ -21,7 +21,14 @@ if(!require(hgu133a.db)) BiocManager::install(hgu133a.db)
 library(hgu133a.db)
   
 FILE = paste0(getwd(),'/data/GSE11121_2.csv')
+source(paste0(getwd(),'/source/load_adjMat.R'))
 
+
+####Load adjacency matrix
+adj = load_adjMat()
+adjMatrix <- adj[[1]]
+ad.list <- adj[[2]]
+mapping <- adj[[3]]
 
 ##Quickly determine the number of columns
 x <- max(count.fields(FILE, ","))
@@ -58,7 +65,8 @@ pipeline_func <- function(df,FUN=lm) {
   
   ###Correctly runs the linear model (or any other model)
   x_tr = df[,-ncol(df)]
-  y_tr = df[,ncol(df)]
+  y_tr = factor(df[,ncol(df)])
+  print(table(y_tr))
   
   mdl = FUN(x_tr,y_tr)
   
@@ -68,12 +76,12 @@ pipeline_func <- function(df,FUN=lm) {
 
 predict_use_model <- function(mdl,df){
   x_te <- df[,-ncol(df)]
-  var <- custom_func(x_te)
+  var <- constructAdjMat(x_te)
   matched <- var[[1]]
   ad.list <- var[[2]]
   mapping <- var[[3]]
-  y_te <- df[,ncol(df)]
-  pred = predict.networkBasedSVM(mdl, matched$x)
+  y_te <- factor(df[,ncol(df)])
+  pred = predict(mdl, matched$x)
   return (pred)
 }
 
@@ -86,66 +94,22 @@ target = colnames(as.data.frame(data[,ncol(data)]))[1]
 
 # 5-fold cross-validation using machine learning pipelines
 
-custom_func <- function(x_tr){
-  
-  
-  #browser()
-  mapped.probes <- mappedkeys(hgu133aENTREZID)
-  refseq <- as.list(hgu133aENTREZID[mapped.probes])
-  times <- sapply(refseq, length)
-  mapping <- data.frame(probesetID=rep(names(refseq), times=times), graphID=unlist(refseq), row.names=NULL, stringsAsFactors=FALSE)
-  mapping <- unique(mapping)
-  #put if conditional
-  
-  paths <- pathways("hsapiens", "kegg")
-  alledges <- NULL
-  
-  ## creates an adjacency matrix
-  ## remove for loops
-  
-  for(i in 1:length(paths)) ## loop through each of the pathways
-  {
-    curr2 <- paths[[i]]
-    edges <-graphite::edges(curr2)
-    edges <- edges[,c("src","dest")]
-    alledges <- rbind(alledges, edges)
-    alledges = unique(alledges) ## Get the unique edges in the pathway just as a list of gene-gene interactions
-  }
-  
-  src <- as.matrix(sort(as.numeric(unique(alledges[,c("src")]))))
-  dest <- as.matrix(sort(as.numeric(unique(alledges[,c("dest")]))))
-  vals <- unique(rbind(src, dest))
-  
-  adjMatrix <- matrix(0, length(vals), length(vals))
-  rownames(adjMatrix) <- vals
-  colnames(adjMatrix) <- vals
-  ### remove for loops
-  for(i in 1:nrow(alledges))
-  {
-    col1 <- alledges[i,"src"]
-    col2 <- alledges[i,"dest"]
-    adjMatrix[toString(col1),toString(col2)] <- 1
-    adjMatrix[toString(col2),toString(col1)] <- 1
-  }
-  
-  
-  
-  ad.list <- as.adjacencyList(adjMatrix)
-  
+constructAdjMat <- function(x_tr){
+
   
 matched <- matchMatrices(x = x_tr, adjacency = adjMatrix, mapping = mapping)
 return(list(matched,ad.list,mapping))
 
 }
 
-custom_nsvm <- function(x_tr,y_tr){
+nsvm_wrapper <- function(x_tr,y_tr){
   #browser()
-  var <- custom_func(x_tr)
+  var <- constructAdjMat(x_tr)
   matched <- var[[1]]
   ad.list <- var[[2]]
   mapping <- var[[3]]
-  x = x_tr
-  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=FALSE, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
+  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=T, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
+  nbSVM
   mapping[mapping[,2] %in% nbSVM$features,]
   return(nbSVM)
 }
@@ -155,8 +119,8 @@ data[,ncol(data)] = factor(data[,ncol(data)])
 #.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
 
-cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:2000,ncol(data))]), 5) %>% 
-  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),custom_nsvm)),
+cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>% 
+  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),nsvm_wrapper)),
          predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
