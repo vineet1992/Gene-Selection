@@ -148,16 +148,18 @@ accuracy_wrapper <- function(x,pred){
   return(as.numeric(auc(roc(x[,ncol(x)],pred))))
 }
 
+stability_wrapper = function(x){
+    return(x)
+  
+}
+
 cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>% 
   mutate(algorithm_name = 'nbsvm',
           select_features = map(train, ~ pipeline_func(as.data.frame(.x),hhsvm_wrapper)),
          predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
-         #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
-#[,c(1:100,ncol(as.data.frame(.x)))]
-         #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-         #pred = predict(nbSVM, mdev$x),
-        #print(pred)	
-        accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
+        accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))),
+        stability = map(select_features, ~ stability_wrapper(.x))
+        )
 cv_rmse
 
 df = as.data.frame(cbind(cv_rmse$algorithm_name,cv_rmse$accuracy))
