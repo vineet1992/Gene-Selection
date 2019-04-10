@@ -176,3 +176,5 @@ df$accuracy = as.numeric(df$accuracy)
 
 g = ggplot(df, aes(x=algorithm_name, y=accuracy)) + 
   geom_boxplot() + theme_bw() + ylim(0,1)
+
+g
