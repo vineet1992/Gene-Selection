@@ -18,10 +18,18 @@ load_adjMat = function()
   for(i in 1:length(paths)) ## loop through each of the pathways
   {
     curr2 <- paths[[i]]
-    edges <-graphite::edges(curr2)
-    edges <- edges[,c("src","dest")]
-    alledges <- rbind(alledges, edges)
-    alledges = unique(alledges) ## Get the unique edges in the pathway just as a list of gene-gene interactions
+    
+    ###Remove Metabolic Pathways
+    if(as.numeric(unlist(strsplit(x@id,":"))[[2]]) >1230)
+    {
+      edges <-graphite::edges(curr2)
+      edges <- edges[,c("src","dest")]
+      alledges <- rbind(alledges, edges)
+      alledges = unique(alledges) ## Get the unique edges in the pathway just as a list of gene-gene interactions
+    }
+    
+    
+   
   }
   
   src <- as.matrix(sort(as.numeric(unique(alledges[,c("src")]))))

@@ -146,4 +146,3 @@ cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>%
          #print(pred)	
          #A = roc(y_te,pred)
          #AUC.nbsvm[i+1] = auc(A)
-cv_rmse
