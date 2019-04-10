@@ -22,7 +22,11 @@ library(graphite)
 
 if(!require(hgu133a.db)) BiocManager::install(hgu133a.db)
 library(hgu133a.db)
-  
+
+
+install.packages('ggplot2')
+require(ggplot2)  
+
 FILE = paste0(getwd(),'/data/GSE11121_2.csv')
 
 ###Source helper files
@@ -108,7 +112,7 @@ predict_use_model <- function(mdl,df){
   ###TODO only use matched$x if need be, check based upon the model
   if(class(mdl)=="cv.gcdnet")
   {
-    browser()
+    #browser()
     pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")
   }else if(class(mdl)!="nbSVM")
   {
@@ -133,17 +137,29 @@ target = colnames(as.data.frame(data[,ncol(data)]))[1]
 
 data[,ncol(data)] = factor(data[,ncol(data)])
 
+
 #.x = as.data.frame(data)
 ###Again here the target variable name should not be hardcoded
 
+accuracy_wrapper <- function(x,pred){
+  pred = pred$"1"
+  pred = exp(pred)/(1+exp(pred))
+  #browser()
+  return(auc(roc(x[,ncol(x)],pred)))
+}
+
 cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>% 
-  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),hhsvm_wrapper)),
-         predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))))
+  mutate(algorithm_name = 'nbsvm',
+          select_features = map(train, ~ pipeline_func(as.data.frame(.x),hhsvm_wrapper)),
+         predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
          #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-         #pred = predict(nbSVM, mdev$x)
-         #print(pred)	
-         #A = roc(y_te,pred)
-         #AUC.nbsvm[i+1] = auc(A)
+         #pred = predict(nbSVM, mdev$x),
+        #print(pred)	
+        accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
 cv_rmse
+
+
+g = ggplot(cv_rmse, aes(x=algorithm_name, y=accuracy, fill=grouping_variable)) + 
+  geom_boxplot() + theme_bw() + ylim(0,1)
