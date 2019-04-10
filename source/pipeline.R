@@ -11,7 +11,10 @@ library(pROC)
 
 if(!require(pipeliner)) devtools::install_github('tidyverse/tidyverse')
 if(!require(pipeliner)) devtools::install_github('tidyverse/modelr')
+if(!require(gcdnet)) install.packages("gcdnet")
 
+
+require(gcdnet)
 library(pipeliner)
 library(modelr)
 library(tidyverse)
@@ -21,8 +24,25 @@ if(!require(hgu133a.db)) BiocManager::install(hgu133a.db)
 library(hgu133a.db)
   
 FILE = paste0(getwd(),'/data/GSE11121_2.csv')
+
+###Source helper files
 source(paste0(getwd(),'/source/load_adjMat.R'))
 
+
+
+###Source Modles
+modelDir = paste0(getwd(),'/source/Models/')
+models = list.files(modelDir)
+for(f in models)
+{
+  source(paste0(modelDir,f))
+}
+
+
+
+
+####Set standard deviation cutoff
+sdCutoff = 0.25
 
 ####Load adjacency matrix
 adj = load_adjMat()
@@ -45,7 +65,10 @@ data = matrix(data,nrow=nr,ncol=nc,byrow=T)
 col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
 ## remove the for loop ##
 
-
+###Check for low standard deivation
+sds = apply(data,2,sd)
+data = data[,sds>sdCutoff | col=="y"]
+col = col[sds>sdCutoff | col=="y"]
 
 
 ####Cannot use this for-loop, it should be abandoned
@@ -81,7 +104,19 @@ predict_use_model <- function(mdl,df){
   ad.list <- var[[2]]
   mapping <- var[[3]]
   y_te <- factor(df[,ncol(df)])
-  pred = predict(mdl, matched$x)
+  
+  ###TODO only use matched$x if need be, check based upon the model
+  if(class(mdl)=="cv.gcdnet")
+  {
+    browser()
+    pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")
+  }else if(class(mdl)!="nbSVM")
+  {
+    pred = predict(mdl,x_te)
+  }else
+  {
+    pred = predict(mdl,matched$x)
+  }
   return (pred)
 }
 
@@ -94,25 +129,7 @@ target = colnames(as.data.frame(data[,ncol(data)]))[1]
 
 # 5-fold cross-validation using machine learning pipelines
 
-constructAdjMat <- function(x_tr){
 
-  
-matched <- matchMatrices(x = x_tr, adjacency = adjMatrix, mapping = mapping)
-return(list(matched,ad.list,mapping))
-
-}
-
-nsvm_wrapper <- function(x_tr,y_tr){
-  #browser()
-  var <- constructAdjMat(x_tr)
-  matched <- var[[1]]
-  ad.list <- var[[2]]
-  mapping <- var[[3]]
-  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=T, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
-  nbSVM
-  mapping[mapping[,2] %in% nbSVM$features,]
-  return(nbSVM)
-}
 
 data[,ncol(data)] = factor(data[,ncol(data)])
 
@@ -120,7 +137,7 @@ data[,ncol(data)] = factor(data[,ncol(data)])
 ###Again here the target variable name should not be hardcoded
 
 cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>% 
-  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),nsvm_wrapper)),
+  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),hhsvm_wrapper)),
          predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))))
          #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
 #[,c(1:100,ncol(as.data.frame(.x)))]
