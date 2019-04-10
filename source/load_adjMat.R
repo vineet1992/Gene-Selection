@@ -20,7 +20,8 @@ load_adjMat = function()
     curr2 <- paths[[i]]
     
     ###Remove Metabolic Pathways
-    if(as.numeric(unlist(strsplit(x@id,":"))[[2]]) >1230)
+    #browser()
+    if(as.numeric(unlist(strsplit(curr2@id,":"))[[2]]) >1230)
     {
       edges <-graphite::edges(curr2)
       edges <- edges[,c("src","dest")]
