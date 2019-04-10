@@ -145,7 +145,7 @@ accuracy_wrapper <- function(x,pred){
   pred = pred$"1"
   pred = exp(pred)/(1+exp(pred))
   #browser()
-  return(auc(roc(x[,ncol(x)],pred)))
+  return(as.numeric(auc(roc(x[,ncol(x)],pred))))
 }
 
 cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>% 
@@ -160,6 +160,10 @@ cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), 5) %>%
         accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
 cv_rmse
 
+df = as.data.frame(cbind(cv_rmse$algorithm_name,cv_rmse$accuracy))
 
-g = ggplot(cv_rmse, aes(x=algorithm_name, y=accuracy, fill=grouping_variable)) + 
+colnames(df) <- c('algorithm_name','accuracy')
+
+g = ggplot(df, aes(x=algorithm_name, y=accuracy)) + 
   geom_boxplot() + theme_bw() + ylim(0,1)
+
