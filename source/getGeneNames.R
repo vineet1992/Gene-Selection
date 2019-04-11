@@ -1,3 +1,5 @@
+require(hgu133a.db)
+
 mapped.probes <- mappedkeys(hgu133aSYMBOL)
 names <- as.list(hgu133aSYMBOL[mapped.probes])
 col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]

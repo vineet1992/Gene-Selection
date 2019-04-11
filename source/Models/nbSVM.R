@@ -12,7 +12,7 @@ nsvm_wrapper <- function(x_tr,y_tr){
   matched <- var[[1]]
   ad.list <- var[[2]]
   mapping <- var[[3]]
-  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=T, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
+  nbSVM = fit.networkBasedSVM(matched$x, y_tr, DEBUG=F, adjacencyList = ad.list, lambdas = 10^(-1:2),sd.cutoff=0.5)
   nbSVM
   return(nbSVM)
 }

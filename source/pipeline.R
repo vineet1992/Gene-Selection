@@ -25,12 +25,14 @@ library(hgu133a.db)
 
 if(!require(ggplot2))install.packages("ggplot2")
 
-FILE = paste0(getwd(),'/data/GSE11121_2.csv')
 
 ###Source helper files
 source(paste0(getwd(),'/source/load_adjMat.R'))
 
-
+###PARAMETERS
+nFolds = 5
+####Set standard deviation cutoff
+sdCutoff = 0.25
 
 ###Source Modles
 modelDir = paste0(getwd(),'/source/Models/')
@@ -40,11 +42,18 @@ for(f in models)
   source(paste0(modelDir,f))
 }
 
+
+###Prepare dataset loading
+dataDir = paste0(getwd(),'/data/')
+datasets = list.files(dataDir)
+
+datasets = datasets[startsWith(datasets,"GSE")]
+
+
 names = c("hhsvm","nsvm","rrfe")
 
 
-####Set standard deviation cutoff
-sdCutoff = 0.25
+
 
 ####Load adjacency matrix
 adj = load_adjMat()
@@ -52,36 +61,9 @@ adjMatrix <- adj[[1]]
 ad.list <- adj[[2]]
 mapping <- adj[[3]]
 
-##Quickly determine the number of columns
-x <- max(count.fields(FILE, ","))
-
-###Scan the file
-data <- scan(FILE,sep=",")
-
-###Extract number of rows and columns
-nr = length(data)/x
-nc = x
-data = matrix(data,nrow=nr,ncol=nc,byrow=T)
 
 
-col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
-## remove the for loop ##
-
-###Check for low standard deivation
-sds = apply(data,2,sd)
-data = data[,sds>sdCutoff | col=="y"]
-col = col[sds>sdCutoff | col=="y"]
-
-
-####Cannot use this for-loop, it should be abandoned
-####A legal R variable cannot start with a number, so this causes problems when using a formula object
-for(i in 1:length(col)) ## removes any leading X in the header names
-{
-  if(substring(col[i], 1, 1) == 'X')
-    col[i] <- substr(col[i], 2, nchar(col[i]))
-}
-colnames(data) <- col
-
+###Helper functions for the pipeline
 pipeline_func <- function(df,FUN=lm) {
   
   ###This formula assumes that the first variable is the Target variable of interest 
@@ -91,8 +73,7 @@ pipeline_func <- function(df,FUN=lm) {
   ###Correctly runs the linear model (or any other model)
   x_tr = df[,-ncol(df)]
   y_tr = factor(df[,ncol(df)])
-  print(table(y_tr))
-  
+
   mdl = FUN(x_tr,y_tr)
   
   ##Return the model
@@ -125,22 +106,6 @@ predict_use_model <- function(mdl,df){
   return (pred)
 }
 
-###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
-temp = data[,-ncol(data)]
-target = colnames(as.data.frame(data[,ncol(data)]))[1]
-
-#change to precision recall
-#target variable sjo
-
-# 5-fold cross-validation using machine learning pipelines
-
-
-
-data[,ncol(data)] = factor(data[,ncol(data)])
-
-
-#.x = as.data.frame(data)
-###Again here the target variable name should not be hardcoded
 
 accuracy_wrapper <- function(x,pred){
   pred = pred$.y
@@ -150,50 +115,112 @@ accuracy_wrapper <- function(x,pred){
 }
 
 stability_wrapper = function(x){
-    return(x)
+  return(x)
   
 }
 
-nFolds = 5
-for(i in 1:length(names))
+
+first = T
+
+for(d in datasets)
 {
   
-
-
-
-  cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), nFolds) %>% 
-    mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),eval(parse(text=paste0(names[i],"_wrapper"))))),
-           predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
-           algorithm_name = rep(names[i],nFolds),
-           accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
-           #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
-  #[,c(1:100,ncol(as.data.frame(.x)))]
-           #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-           #pred = predict(nbSVM, mdev$x)
-           #print(pred)	
-           #A = roc(y_te,pred)
-           #AUC.nbsvm[i+1] = auc(A)
+  FILE = paste0(getwd(),'/data/',d)
   
-  if(i==1)
-  {
-    results = cv_rmse
-  }else
-  {
-    results = rbind(results,cv_rmse)
-  }
-  cv_rmse
+  print(paste0("Running dataset: ", d))
 
+  ##Quickly determine the number of columns
+  x <- max(count.fields(FILE, ","))
+  
+  ###Scan the file
+  data <- scan(FILE,sep=",")
+  
+  ###Extract number of rows and columns
+  nr = length(data)/x
+  nc = x
+  data = matrix(data,nrow=nr,ncol=nc,byrow=T)
+  
+  
+  col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
+  ## remove the for loop ##
+  
+  ###Check for low standard deivation
+  sds = apply(data,2,sd)
+  data = data[,sds>sdCutoff | col=="y"]
+  col = col[sds>sdCutoff | col=="y"]
+  
+  
+  ####Cannot use this for-loop, it should be abandoned
+  ####A legal R variable cannot start with a number, so this causes problems when using a formula object
+  for(i in 1:length(col)) ## removes any leading X in the header names
+  {
+    if(substring(col[i], 1, 1) == 'X')
+      col[i] <- substr(col[i], 2, nchar(col[i]))
+  }
+  colnames(data) <- col
+  
+ 
+  
+  ###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
+  temp = data[,-ncol(data)]
+  target = colnames(as.data.frame(data[,ncol(data)]))[1]
+  
+  #change to precision recall
+  #target variable sjo
+  
+  # 5-fold cross-validation using machine learning pipelines
+  
+  
+  
+  data[,ncol(data)] = factor(data[,ncol(data)])
+  
+  
+  #.x = as.data.frame(data)
+  ###Again here the target variable name should not be hardcoded
+ 
+
+  for(i in 1:length(names))
+  {
+    
+  
+    print(paste0("On Algorithm: ",names[i]))
+  
+    cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), nFolds) %>% 
+      mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),eval(parse(text=paste0(names[i],"_wrapper"))))),
+             predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
+             algorithm_name = rep(names[i],nFolds),
+             accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))),
+             dataset = rep(d,nFolds))
+             #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
+    #[,c(1:100,ncol(as.data.frame(.x)))]
+             #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
+             #pred = predict(nbSVM, mdev$x)
+             #print(pred)	
+             #A = roc(y_te,pred)
+             #AUC.nbsvm[i+1] = auc(A)
+    
+    if(first)
+    {
+      results = cv_rmse
+      first = F
+    }else
+    {
+      results = rbind(results,cv_rmse)
+    }
+    cv_rmse
+  
+  }
 }
 
-df = as.data.frame(cbind(results$algorithm_name,results$accuracy))
+df = as.data.frame(cbind(results$dataset,results$algorithm_name,results$accuracy))
 rownames(df) = seq(1,nrow(df))
-colnames(df) <- c('algorithm_name','accuracy')
+colnames(df) <- c('dataset','algorithm_name','accuracy')
 
 df$algorithm_name = as.factor(as.character(df$algorithm_name))
 df$accuracy = as.numeric(df$accuracy)
+df$dataset = as.factor(as.character(df$dataset))
 
 
-g = ggplot(df, aes(x=algorithm_name, y=accuracy,fill=algorithm_name)) + 
+g = ggplot(df, aes(x=dataset, y=accuracy,fill=algorithm_name)) + 
   geom_boxplot() + theme_bw()+ ylim(0,1)
 
-g
