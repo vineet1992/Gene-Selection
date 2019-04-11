@@ -48,6 +48,7 @@ dataDir = paste0(getwd(),'/data/')
 datasets = list.files(dataDir)
 
 datasets = datasets[startsWith(datasets,"GSE")]
+datasets = datasets[1:3]
 
 
 names = c("hhsvm","nsvm","rrfe")
