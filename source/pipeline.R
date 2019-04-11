@@ -40,7 +40,7 @@ for(f in models)
   source(paste0(modelDir,f))
 }
 
-
+names = c("hhsvm","nsvm","rrfe")
 
 
 ####Set standard deviation cutoff
@@ -99,7 +99,10 @@ pipeline_func <- function(df,FUN=lm) {
   return(mdl)
 }
 
+
+###Ensure all prediction types are the same
 predict_use_model <- function(mdl,df){
+  
   x_te <- df[,-ncol(df)]
   var <- constructAdjMat(x_te)
   matched <- var[[1]]
@@ -110,14 +113,14 @@ predict_use_model <- function(mdl,df){
   ###TODO only use matched$x if need be, check based upon the model
   if(class(mdl)=="cv.gcdnet")
   {
-    #browser()
-    pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")
-  }else if(class(mdl)!="nbSVM")
+    
+    pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")[,1]
+  }else if(class(mdl)!="networkBasedSVM")
   {
-    pred = predict(mdl,x_te)
+    pred = predict(mdl,x_te)[,1]
   }else
   {
-    pred = predict(mdl,matched$x)
+    pred = predict(mdl,matched$x)[,1]
   }
   return (pred)
 }
@@ -140,7 +143,7 @@ data[,ncol(data)] = factor(data[,ncol(data)])
 ###Again here the target variable name should not be hardcoded
 
 accuracy_wrapper <- function(x,pred){
-  pred = pred$"1"
+  pred = pred$.y
   pred = exp(pred)/(1+exp(pred))
   #browser()
   return(as.numeric(auc(roc(x[,ncol(x)],pred))))
@@ -151,28 +154,46 @@ stability_wrapper = function(x){
   
 }
 
-nFolds = 10
-cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), nFolds) %>% 
-  mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),nsvm_wrapper)),
-         predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
-         algorithm_name = rep('hhsvm',nFolds),
-         accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
-         #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
-#[,c(1:100,ncol(as.data.frame(.x)))]
-         #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-         #pred = predict(nbSVM, mdev$x)
-         #print(pred)	
-         #A = roc(y_te,pred)
-         #AUC.nbsvm[i+1] = auc(A)
+nFolds = 5
+for(i in 1:length(names))
+{
+  
 
-cv_rmse
 
-df = as.data.frame(cbind(cv_rmse$algorithm_name,cv_rmse$accuracy))
+
+  cv_rmse <- crossv_kfold(as.data.frame(data[,c(1:3000,ncol(data))]), nFolds) %>% 
+    mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),eval(parse(text=paste0(names[i],"_wrapper"))))),
+           predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
+           algorithm_name = rep(names[i],nFolds),
+           accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))))
+           #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
+  #[,c(1:100,ncol(as.data.frame(.x)))]
+           #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
+           #pred = predict(nbSVM, mdev$x)
+           #print(pred)	
+           #A = roc(y_te,pred)
+           #AUC.nbsvm[i+1] = auc(A)
+  
+  if(i==1)
+  {
+    results = cv_rmse
+  }else
+  {
+    results = rbind(results,cv_rmse)
+  }
+  cv_rmse
+
+}
+
+df = as.data.frame(cbind(results$algorithm_name,results$accuracy))
+rownames(df) = seq(1,nrow(df))
 colnames(df) <- c('algorithm_name','accuracy')
 
 df$algorithm_name = as.factor(as.character(df$algorithm_name))
 df$accuracy = as.numeric(df$accuracy)
 
 
-g = ggplot(df, aes(x=algorithm_name, y=accuracy)) + 
-  geom_boxplot() + theme_bw() + ylim(0,1)
+g = ggplot(df, aes(x=algorithm_name, y=accuracy,fill=algorithm_name)) + 
+  geom_boxplot() + theme_bw()+ ylim(0,1)
+
+g
