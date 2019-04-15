@@ -34,6 +34,9 @@ nFolds = 5
 ####Set standard deviation cutoff
 sdCutoff = 0.25
 
+names = c("hhsvm","nsvm","rrfe")
+
+
 ###Source Modles
 modelDir = paste0(getwd(),'/source/Models/')
 models = list.files(modelDir)
@@ -48,10 +51,8 @@ dataDir = paste0(getwd(),'/data/')
 datasets = list.files(dataDir)
 
 datasets = datasets[startsWith(datasets,"GSE")]
-datasets = datasets[1:3]
 
 
-names = c("hhsvm","nsvm","rrfe")
 
 
 
@@ -147,6 +148,9 @@ for(d in datasets)
   
   ###Check for low standard deivation
   sds = apply(data,2,sd)
+  
+  goodGenes = sds>cutoff | col=="y"
+  
   data = data[,sds>sdCutoff | col=="y"]
   col = col[sds>sdCutoff | col=="y"]
   
