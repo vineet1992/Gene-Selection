@@ -149,7 +149,7 @@ for(d in datasets)
   ###Check for low standard deivation
   sds = apply(data,2,sd)
   
-  goodGenes = sds>cutoff | col=="y"
+  goodGenes = sds>sdCutoff | col=="y"
   
   data = data[,sds>sdCutoff | col=="y"]
   col = col[sds>sdCutoff | col=="y"]
