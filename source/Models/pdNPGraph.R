@@ -22,7 +22,6 @@ pdNPGraph_wrapper = function(x_tr,y_tr)
   ###Read in selected genes and train linear model (allow for summarization as well)
   newData = read.table(paste(runName,"graph.txt",sep='/'),sep=' ',header=F,skip=4)
   
-  browser()
   ###No variables were chosen to be connected to the target
   if(sum(newData$V2=="y"|newData$V4=="y")==0)
   {

@@ -36,7 +36,7 @@ pdNP_wrapper = function(x_tr,y_tr)
   
   newData$y = as.factor(newData$y)
   levels(newData$y) = c("1","2")
-  mdl = glm(y~.,newData,family=binomial(link="logit"))
+  mdl = glm(y~.,data = newData,family=binomial(link="logit"))
   
   ###return the linear model
   return(mdl)
