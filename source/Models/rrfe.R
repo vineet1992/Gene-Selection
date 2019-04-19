@@ -1,5 +1,6 @@
 rrfe_wrapper <- function(x_tr,y_tr){
-  #browser()
+  sds = apply(x_tr,2,sd)
+  x_tr = x_tr[,sds>sdCutoff]
   var <- constructAdjMat(x_tr)
   matched <- var[[1]]
   ad.list <- var[[2]]

@@ -1,7 +1,14 @@
-lib = "/net/maccutcheon/home/benos/vkr8/Rlibrary"
-source("http://bioconductor.org/biocLite.R")
+lib = "/net/maccutcheon/home/benos/vkr8/Rlib"
 
-library(pathClass,lib=lib)
+require(ggplot2,lib=lib)
+library(tibble,lib=lib)
+library(tidyr,lib=lib)
+library(readr,lib=lib)
+library(purrr,lib=lib)
+library(dplyr,lib=lib)
+library(tidyverse,lib=lib)
+
+
 library(svmpath,lib=lib)
 library(kernlab,lib=lib)
 library(Biobase,lib=lib)
@@ -18,22 +25,23 @@ library(pROC,lib=lib)
 require(gcdnet,lib=lib)
 library(pipeliner,lib=lib)
 library(modelr,lib=lib)
-library(tidyverse,lib=lib)
 library(graphite,lib=lib)
-library(hgu133a.db,lib=lib)
-require(ggplot2,lib=lib)
 
+library(org.Hs.eg.db,lib=lib)
+library(hgu133a.db,lib=lib)
 ###Source helper files
 source(paste0(getwd(),'/source/load_adjMat.R'))
 
 ###PARAMETERS
-nFolds = 5
+nFolds = 3
 ####Set standard deviation cutoff
-sdCutoff = 0.5
+sdCutoff = 0.25
+
+graphSelect = 50
 
 ###NBSVM won't find shiz
-names = c("pd","pdGraph","rrfe","hhsvm")
-
+names = c("pdNP","pdNPGraph","pdPCA","pdGraph","rrfe","hhsvm")
+#names = c("pdNPGraph")
 
 ###Source Modles
 modelDir = paste0(getwd(),'/source/Models/')
@@ -92,14 +100,49 @@ predict_use_model <- function(mdl,df){
   
   ###TODO only use matched$x if need be, check based upon the model
   
+  
   if(class(mdl)=="cv.gcdnet")
   {
     x_te = x_te[,rownames(mdl$gcdnet.fit$beta)] 
     pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")[,1]
   }else if(length(class(mdl))>1)
   {
-    pred = predict(mdl,x_te)
-    pred = 1/(1+exp(-1*pred))
+    ###Check if this is PCA aggregated features
+    if(sum(grepl(".",colnames(mdl$data),fixed=T)) > 0)
+    {
+      ###Extract the columns involved in each column of the data, apply PCA to them and include them in the final testing set
+      testData = matrix(nrow=nrow(x_te),ncol=ncol(mdl$data))
+      
+    
+      for(i in 1:ncol(mdl$data))
+      {
+        
+        name = colnames(mdl$data)[i]
+        
+        if(name=="y")
+        {
+          testData[,i] = y_te
+        }else
+        {
+          cols = unlist(strsplit(name,".",fixed=T))
+          tempDat = x_te[,colnames(x_te)%in%cols]
+          p = prcomp(tempDat,scale=T,center=T)
+          testData[,i] = p$x[,1]
+        }
+      }
+      colnames(testData) = colnames(mdl$data)
+      pred = predict(mdl,as.data.frame(testData))
+      pred = 1/(1+exp(-1*pred))
+
+    }else
+    {
+      
+      pred = predict(mdl,x_te)
+      pred = 1/(1+exp(-1*pred))
+    }
+    
+    
+ 
   }else if(class(mdl)!="networkBasedSVM")
   {
     pred = predict(mdl,x_te)[,1]

@@ -1,5 +1,6 @@
-###STILL TODO, make the ability to edit for PCA in the predict function too
 
+
+###PiPrefDiv with PCA Summarization
 pdPCA_wrapper = function(x_tr,y_tr)
 {
   nc = ncol(x_tr)
@@ -32,7 +33,7 @@ pdPCA_wrapper = function(x_tr,y_tr)
   
   runName = "PD"
   ###Submit jar file command
-  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10,15 -priors tempPriors -disc -name ",runName,sep="")
+  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10,15 -priors tempPriors -disc -ctype pca -name ",runName,sep="")
   system(cmd)
   
   ###Read in selected genes and train linear model (allow for summarization as well)
@@ -44,10 +45,10 @@ pdPCA_wrapper = function(x_tr,y_tr)
       col[i] <- substr(col[i], 2, nchar(col[i]))
   }
   colnames(newData) <- col
-  
+
   newData$y = as.factor(newData$y)
   levels(newData$y) = c("1","2")
-  mdl = glm(y~.,newData,family=binomial(link="logit"))
+  mdl = glm(y~.,data=newData,family=binomial(link="logit"))
   
   ###return the linear model
   return(mdl)

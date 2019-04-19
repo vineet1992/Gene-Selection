@@ -13,6 +13,9 @@ symbols = unlist(names)[col]
 
 names(symbols)=col
 
-symbols[length(symbols)] = "Outcome"
+symbols[length(symbols)] = "y"
 
 write.table(symbols,file="Affy_Gene_Symbols.txt",quote=F,sep='\t',row.names=F,col.names=T)
+
+symbols = symbols[c(1:500,length(symbols))]
+write.table(symbols,file="Affy_Symbols_500.txt",quote=F,sep='\t',row.names=F,col.names=T)

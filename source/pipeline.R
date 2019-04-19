@@ -32,9 +32,9 @@ source(paste0(getwd(),'/source/load_adjMat.R'))
 ###PARAMETERS
 nFolds = 5
 ####Set standard deviation cutoff
-sdCutoff = 0.25
+sdCutoff = 0.5
 
-names = c("hhsvm","nsvm","rrfe")
+names = c("nsvm","rrfe","hhsvm")
 
 
 ###Source Modles
@@ -51,7 +51,7 @@ dataDir = paste0(getwd(),'/data/')
 datasets = list.files(dataDir)
 
 datasets = datasets[startsWith(datasets,"GSE")]
-
+datasets = datasets[c(1:2)]
 
 
 
@@ -96,7 +96,7 @@ predict_use_model <- function(mdl,df){
   ###TODO only use matched$x if need be, check based upon the model
   if(class(mdl)=="cv.gcdnet")
   {
-    
+    x_te = x_te[,rownames(mdl$gcdnet.fit$beta)] 
     pred = predict(mdl,as.matrix(x_te),type="link",s="lambda.min")[,1]
   }else if(class(mdl)!="networkBasedSVM")
   {
@@ -146,15 +146,7 @@ for(d in datasets)
   col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
   ## remove the for loop ##
   
-  ###Check for low standard deivation
-  sds = apply(data,2,sd)
-  
-  goodGenes = sds>sdCutoff | col=="y"
-  
-  data = data[,sds>sdCutoff | col=="y"]
-  col = col[sds>sdCutoff | col=="y"]
-  
-  
+ 
   ####Cannot use this for-loop, it should be abandoned
   ####A legal R variable cannot start with a number, so this causes problems when using a formula object
   for(i in 1:length(col)) ## removes any leading X in the header names
