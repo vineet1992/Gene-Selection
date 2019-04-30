@@ -10,7 +10,7 @@ pdPCA_wrapper = function(x_tr,y_tr)
   x_tr = x_tr[,sds>sdCutoff]
   
   ###Load prior information and create temp directory to store
-  dir = "./testPriors/"
+  dir = "./priors/"
   tempDir = "./tempPriors/"
   
   dir.create(tempDir)
@@ -33,7 +33,7 @@ pdPCA_wrapper = function(x_tr,y_tr)
   
   runName = "PD"
   ###Submit jar file command
-  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10,15 -priors tempPriors -disc -ctype pca -name ",runName,sep="")
+  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10 -priors tempPriors -disc -ctype pca -name ",runName,sep="")
   system(cmd)
   
   ###Read in selected genes and train linear model (allow for summarization as well)

@@ -7,7 +7,6 @@ constructAdjMat <- function(x_tr){
 }
 
 nsvm_wrapper <- function(x_tr,y_tr){
-  browser()
   var <- constructAdjMat(x_tr)
   matched <- var[[1]]
   ad.list <- var[[2]]

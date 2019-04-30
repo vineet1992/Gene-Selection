@@ -33,15 +33,18 @@ library(hgu133a.db,lib=lib)
 source(paste0(getwd(),'/source/load_adjMat.R'))
 
 ###PARAMETERS
-nFolds = 3
+nFolds = 5
 ####Set standard deviation cutoff
-sdCutoff = 0.25
+sdCutoff = 0.5
 
-graphSelect = 50
+graphSelect = 100
 
 ###NBSVM won't find shiz
-names = c("pdNP","pdNPGraph","pdPCA","pdGraph","rrfe","hhsvm")
+#names = c("pd","pdNPPCA","pdNPPCAGraph","pdPCA","pdGraph","pdPCAGraph","rrfe","hhsvm","nbsvm")
+#names = c("pd","pdPCA","pdGraph","pdNPPCAGraph","pdNPPCA","rrfe","hhsvm")
+names = c("pdNPPCAGraph","pdNPPCA","hhsvm","rrfe","pd","pdGraph","pdPCAGraph","pdPCA")
 #names = c("pdNPGraph")
+
 
 ###Source Modles
 modelDir = paste0(getwd(),'/source/Models/')
@@ -58,6 +61,7 @@ datasets = list.files(dataDir)
 
 datasets = datasets[startsWith(datasets,"GSE")]
 
+datasets = datasets[1:5]
 
 
 
@@ -67,7 +71,6 @@ adj = load_adjMat()
 adjMatrix <- adj[[1]]
 ad.list <- adj[[2]]
 mapping <- adj[[3]]
-
 
 
 ###Helper functions for the pipeline
@@ -90,7 +93,6 @@ pipeline_func <- function(df,FUN=lm) {
 
 ###Ensure all prediction types are the same
 predict_use_model <- function(mdl,df){
-  
   x_te <- df[,-ncol(df)]
   var <- constructAdjMat(x_te)
   matched <- var[[1]]
@@ -188,7 +190,7 @@ for(d in datasets)
   nc = x
   data = matrix(data,nrow=nr,ncol=nc,byrow=T)
   
-  data = data[,c(1:500,ncol(data))]
+  #data = data[,c(1:500,ncol(data))]
   
   col = scan(paste0(getwd(),"/data/headers.csv"),sep=",",what=character())[1:ncol(data)]
   ## remove the for loop ##
@@ -206,7 +208,6 @@ for(d in datasets)
   
   
   ###Linear model doesn't work if  | features | > | samples | so take a small chunk of features
-  temp = data[,-ncol(data)]
   target = colnames(as.data.frame(data[,ncol(data)]))[1]
   
   #change to precision recall
@@ -219,48 +220,80 @@ for(d in datasets)
   data[,ncol(data)] = factor(data[,ncol(data)])
   
   
+  foldFile = paste0("data/Folds_",d,".Rdata")
   #.x = as.data.frame(data)
   ###Again here the target variable name should not be hardcoded
   folds = crossv_kfold(as.data.frame(data),nFolds)
-  x_tr = as.data.frame(folds$train[1])
-  y_tr= factor(x_tr[,ncol(x_tr)])
-  x_tr = x_tr[,-ncol(x_tr)]
-  x_te = as.data.frame(folds$test[1])
-  y_te = factor(x_te[,ncol(x_te)])
-  x_te = x_te[,-ncol(x_te)]
+  rm(data)
+  
+  
+  if(file.exists(foldFile))
+  {
+    print("Loading folds...")
+    load(foldFile)
+  }else
+  {
+    print("Saving folds...")
+    save(folds,file=foldFile)
+    
+  }
+  
+  
+  ##x_tr = as.data.frame(folds$train[1])
+  #y_tr= factor(x_tr[,ncol(x_tr)])
+  #x_tr = x_tr[,-ncol(x_tr)]
+  #x_te = as.data.frame(folds$test[1])
+  #y_te = factor(x_te[,ncol(x_te)])
+  #x_te = x_te[,-ncol(x_te)]
   
   for(i in 1:length(names))
   {
+	fileName = paste0("Results/",d,"_",names[i],".Rdata")
     
     
     print(paste0("On Algorithm: ",names[i]))
-    
-    cv_rmse <- crossv_kfold(as.data.frame(data), nFolds) %>% 
-      mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),eval(parse(text=paste0(names[i],"_wrapper"))))),
-             predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
-             algorithm_name = rep(names[i],nFolds),
-             accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))),
-             dataset = rep(d,nFolds))
-    #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
-    #[,c(1:100,ncol(as.data.frame(.x)))]
-    #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))
-    #pred = predict(nbSVM, mdev$x)
-    #print(pred)	
-    #A = roc(y_te,pred)
-    #AUC.nbsvm[i+1] = auc(A)
-    
+	
+    if(file.exists(fileName))
+    {
+      load(fileName)
+      cv_rmse$select_features=NULL
+      cv_rmse$algorithm_name = rep(names[i],nFolds)
+    }else
+    {
+      cv_rmse <- folds %>% 
+        mutate(select_features = map(train, ~ pipeline_func(as.data.frame(.x),eval(parse(text=paste0(names[i],"_wrapper"))))),
+               predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
+               algorithm_name = rep(names[i],nFolds),
+               accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))),
+               dataset = rep(d,nFolds))
+      
+      cv_rmse$train=NULL
+      cv_rmse$test=NULL
+      
+ 
+      save(cv_rmse,file=fileName)
+      
+    }
+  
     if(first)
     {
+      
+      cv_rmse$train=NULL
+      cv_rmse$test=NULL
       results = cv_rmse
       first = F
     }else
     {
+      
+      cv_rmse$train=NULL
+      cv_rmse$test=NULL
       results = rbind(results,cv_rmse)
     }
-    cv_rmse
-    
+gc()    
   }
 }
+
+save(results,file="Results/Full_Results.Rdata")
 
 df = as.data.frame(cbind(results$dataset,results$algorithm_name,results$accuracy))
 rownames(df) = seq(1,nrow(df))
@@ -270,7 +303,14 @@ df$algorithm_name = as.factor(as.character(df$algorithm_name))
 df$accuracy = as.numeric(df$accuracy)
 df$dataset = as.factor(as.character(df$dataset))
 
+row = df$dataset%in%datasets[1:3]
+row = ifelse(row,1,2)
+col = ifelse(df$dataset%in%datasets[c(1,4)],1,ifelse(df$dataset%in%datasets[c(2,5)],2,3))
 
-g = ggplot(df, aes(x=dataset, y=accuracy,fill=algorithm_name)) + 
-  geom_boxplot() + theme_bw()+ ylim(0,1)
+df$row = factor(row)
+df$col = factor(col)
+
+g = ggplot(df, aes(x=algorithm_name, y=accuracy,fill=algorithm_name)) + 
+  geom_boxplot() + theme_bw()+ ylim(0.4,1) + facet_grid(row ~ col)
+
 

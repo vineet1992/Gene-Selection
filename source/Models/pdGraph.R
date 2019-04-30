@@ -9,7 +9,7 @@ pdGraph_wrapper = function(x_tr,y_tr)
   x_tr = x_tr[,sds>sdCutoff]
   
   ###Load prior information and create temp directory to store
-  dir = "./testPriors/"
+  dir = "./priors/"
   tempDir = "./tempPriors/"
   
   dir.create(tempDir)

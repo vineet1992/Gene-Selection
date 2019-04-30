@@ -10,12 +10,15 @@ pd_wrapper = function(x_tr,y_tr)
   x_tr = x_tr[,sds>sdCutoff]
   
   ###Load prior information and create temp directory to store
-  dir = "./testPriors/"
+  dir = "./priors/"
   tempDir = "./tempPriors/"
   
   dir.create(tempDir)
+  
+  print("Reading priors...")
   for(f in list.files(dir))
   {
+    print(f)
     curr = matrix(scan(paste0(dir,f),sep="\t"),ncol=nc+1,nrow=nc+1,byrow=T)
     ###Subset prior information row-wise and column-wise based on sd cutoff
     
@@ -31,9 +34,10 @@ pd_wrapper = function(x_tr,y_tr)
   
   write.table(trainData,file="temp.txt",sep='\t',quote=F,row.names=F)
   
+  print("Running pref-div")
   runName = "PD"
   ###Submit jar file command
-  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10,15 -priors tempPriors -disc -name ",runName,sep="")
+  cmd = paste("java -jar -Xmx4g PrefDiv.jar -t y -data temp.txt -outData data_summary.txt -outCluster clusters.txt -cv 3 1,3,5,10 -priors tempPriors -disc -name ",runName,sep="")
   system(cmd)
 
   ###Read in selected genes and train linear model (allow for summarization as well)
