@@ -34,7 +34,8 @@ nFolds = 5
 ####Set standard deviation cutoff
 sdCutoff = 0.5
 
-names = c("nsvm","rrfe","hhsvm")
+names = #c("nsvm",
+          c("rrfe")#,"hhsvm")
 
 
 ###Source Modles
@@ -174,7 +175,7 @@ for(d in datasets)
   
   #.x = as.data.frame(data)
   ###Again here the target variable name should not be hardcoded
- 
+  stab = matrix(ncol=5,nrow=1)
 
   for(i in 1:length(names))
   {
@@ -187,7 +188,9 @@ for(d in datasets)
              predictions = map2(select_features, test, ~ predict_use_model(.x,as.data.frame(.y))),
              algorithm_name = rep(names[i],nFolds),
              accuracy = map2(test, predictions , ~ accuracy_wrapper(as.data.frame(.x),as.data.frame(.y))),
-             dataset = rep(d,nFolds))
+             dataset = rep(d,nFolds),
+             # features = matrix(sample(sample(LETTERS,15),25,replace=TRUE),ncol=5,nrow=5))
+             # features = map(select_features,~ process_features(.x))
              #residuals = map2(predictions, test, ~ .x - as.data.frame(.y)[,target]),
     #[,c(1:100,ncol(as.data.frame(.x)))]
              #rmse = map_dbl(residuals, ~ sqrt(mean(.x ^ 2)))) %>% summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse))

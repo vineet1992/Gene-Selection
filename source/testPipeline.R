@@ -42,7 +42,7 @@ graphSelect = 100
 ###NBSVM won't find shiz
 #names = c("pd","pdNPPCA","pdNPPCAGraph","pdPCA","pdGraph","pdPCAGraph","rrfe","hhsvm","nbsvm")
 #names = c("pd","pdPCA","pdGraph","pdNPPCAGraph","pdNPPCA","rrfe","hhsvm")
-names = c("pdNPPCAGraph","pdNPPCA","hhsvm","rrfe","pd","pdGraph","pdPCAGraph","pdPCA")
+names = c("pdPCA")#,"pdNPPCAGraph","pdNPPCA","hhsvm","rrfe","pd","pdGraph","pdPCAGraph")
 #names = c("pdNPGraph")
 
 
@@ -61,7 +61,7 @@ datasets = list.files(dataDir)
 
 datasets = datasets[startsWith(datasets,"GSE")]
 
-datasets = datasets[1:5]
+#datasets = datasets[1:5]
 
 
 
@@ -164,9 +164,31 @@ accuracy_wrapper <- function(x,pred){
   return(as.numeric(auc(roc(x[,ncol(x)],pred))))
 }
 
-stability_wrapper = function(x){
-  return(x)
+stability_wrapper = function(list1,list2){
+  final_scores <- matrix(nrow=length(list1),ncol=length(list2))
+  i<-0
+  for(itemlist1 in list1){
+    j<-0
+    for(itemlist2 in list2){
+      
+      il1 = unlist(itemlist1)
+      print(il1[0:10])
+      il2 = unlist(itemlist2)
+      print(il2[0:10])
+      #print(length(intersect(il1,il2)))
+      #print(length(union(il1,il2)))
+      final_scores[i,j] = length(intersect(il1,il2))/length(union(il1,il2))
+      #print(final_scores[i,j])
+      #final_scores[j,i] = final_scores[i,j]
+      j<-j+1
+    }
+    i<- i+1
+  }
   
+  rowscols <- solve_LSAP(final_scores,maximum=FALSE) 
+  print(rowscols)
+  
+  return(final_score)
 }
 
 
@@ -256,8 +278,12 @@ for(d in datasets)
     if(file.exists(fileName))
     {
       load(fileName)
-      cv_rmse$select_features=NULL
+      #cv_rmse$select_features=NULL
       cv_rmse$algorithm_name = rep(names[i],nFolds)
+      sf1 = strsplit(colnames(cv_rmse$select_features$`1`$data),".",fixed=TRUE)
+      sf2 = strsplit(colnames(cv_rmse$select_features$`2`$data),".",fixed=TRUE)
+      final_stability_scores <- stability_wrapper(sf1,sf2)
+      
     }else
     {
       cv_rmse <- folds %>% 
@@ -293,7 +319,7 @@ gc()
   }
 }
 
-save(results,file="Results/Full_Results.Rdata")
+#save(results,file="Results/Full_Results.Rdata")
 
 df = as.data.frame(cbind(results$dataset,results$algorithm_name,results$accuracy))
 rownames(df) = seq(1,nrow(df))
