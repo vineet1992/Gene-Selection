@@ -17,8 +17,10 @@ library(gplots,lib=lib)
 library(igraph,lib=lib)
 library(lpSolve,lib=lib)
 
+if (!requireNamespace("clue", quietly = TRUE))
+  install.packages(clue)
 
-
+require(clue)
 
 library(pathClass,lib=lib)
 library(pROC,lib=lib)
@@ -62,7 +64,8 @@ datasets = list.files(dataDir)
 datasets = datasets[startsWith(datasets,"GSE")]
 
 #datasets = datasets[1:5]
-
+num_rows <- (nfolds*(nfolds-1)/2)*length(datasets)
+stability_scores <- matrix(ncol=2,nrow=num_rows)
 
 
 
@@ -166,33 +169,55 @@ accuracy_wrapper <- function(x,pred){
 
 stability_wrapper = function(list1,list2){
   final_scores <- matrix(nrow=length(list1),ncol=length(list2))
-  i<-0
+  #print(ncol(final_scores))
+  #print(nrow(final_scores))
+  
+  i<-1
   for(itemlist1 in list1){
-    j<-0
+    j<-1
     for(itemlist2 in list2){
       
       il1 = unlist(itemlist1)
-      print(il1[0:10])
+      #print(il1[0:10])
       il2 = unlist(itemlist2)
-      print(il2[0:10])
+      #print(il2[0:10])
+      #print("intersect:")
       #print(length(intersect(il1,il2)))
+      #print("union:")
       #print(length(union(il1,il2)))
-      final_scores[i,j] = length(intersect(il1,il2))/length(union(il1,il2))
+      #print("score:")
+      #print(length(intersect(il1,il2))/length(union(il1,il2)))
+      #print("index:i")
+      #print(i)
+      #print("index:j")
+      #print(j)
+      final_scores[i,j] <- length(intersect(il1,il2))/length(union(il1,il2))
       #print(final_scores[i,j])
       #final_scores[j,i] = final_scores[i,j]
       j<-j+1
     }
     i<- i+1
   }
-  
-  rowscols <- solve_LSAP(final_scores,maximum=FALSE) 
-  print(rowscols)
+  if(nrow(final_scores) > ncol(final_scores))
+    final_scores <- t(final_scores)
+  #print(final_scores)
+  rowscols <- solve_LSAP(final_scores,maximum=TRUE) 
+  row<-1
+  #print(c(rowscols))
+  final_score<-0
+  for(item in rowscols){
+    #print(row)
+    #print(as.numeric(item))
+    final_score <- final_score + final_scores[row,item]
+    row = row+1
+  }
+  final_score <- final_score/(row-1)
   
   return(final_score)
 }
 
 
-first = T
+first = TRUE
 
 for(d in datasets)
 {
@@ -280,9 +305,30 @@ for(d in datasets)
       load(fileName)
       #cv_rmse$select_features=NULL
       cv_rmse$algorithm_name = rep(names[i],nFolds)
-      sf1 = strsplit(colnames(cv_rmse$select_features$`1`$data),".",fixed=TRUE)
-      sf2 = strsplit(colnames(cv_rmse$select_features$`2`$data),".",fixed=TRUE)
-      final_stability_scores <- stability_wrapper(sf1,sf2)
+#      sf1 = strsplit(colnames(cv_rmse$select_features$`1`$data),".",fixed=TRUE)
+#      sf2 = strsplit(colnames(cv_rmse$select_features$`2`$data),".",fixed=TRUE)
+      #final_stability_scores <- stability_wrapper(sf1,sf2)
+      
+      
+      for(l1 in (1:(nFolds-1))){
+        #print(i)
+        vari <- cv_rmse$select_features[[l1]]$data
+        vari <- colnames(vari)
+        vari <- vari[-length(vari)]
+        sf1 = strsplit(vari,".",fixed=TRUE)
+        for(l2 in ((l1+1):nFolds)){
+          #print(j)
+          varj <- cv_rmse$select_features[[l2]]$data
+          varj <- colnames(varj)
+          varj <- varj[-length(varj)]
+          sf2 = strsplit(varj,".",fixed=TRUE)
+          final_stability_scores <-  stability_wrapper(sf1,sf2)
+          stability_scores[(l2+nFolds*(l1-1))-1,1] = rep(d)
+          stability_scores[(l2+nFolds*(l1-1))-1,2] = final_stability_scores
+          #print(final_stability_scores)
+        }
+      }
+      save(stability_scores,file=paste0(names[i],".RData"))
       
     }else
     {
@@ -296,7 +342,9 @@ for(d in datasets)
       cv_rmse$train=NULL
       cv_rmse$test=NULL
       
- 
+     
+      
+      
       save(cv_rmse,file=fileName)
       
     }
@@ -307,7 +355,7 @@ for(d in datasets)
       cv_rmse$train=NULL
       cv_rmse$test=NULL
       results = cv_rmse
-      first = F
+      first = FALSE
     }else
     {
       

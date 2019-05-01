@@ -3,3 +3,4 @@
 .RData
 .Ruserdata
 Affy_Gene_Symbols.txt
+Results/*.RData
